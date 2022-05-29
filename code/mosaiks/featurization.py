@@ -3,7 +3,7 @@ import pathlib
 import time
 from pathlib import Path
 
-import dill
+import pickle
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -34,7 +34,8 @@ class OnDiskDataset(torch.utils.data.Dataset):
         ret_lst = []
         ret_lst.append(str(rel_path))
         if self.load_img:
-            img = Image.open(self.files_lst[idx])
+            img = Image.open(self.files_lst[idx]).convert('RGB') # TODO: Remove .convert
+
             if self.transform is not None:
                 ret_lst.append(self.transform(img))
             else:
@@ -299,6 +300,8 @@ def coatesng_featurize(
         print(f"generating features {start} to {end}")
         names = []
         with tqdm(total=len(dataset)) as pbar:
+            print(X_batch)
+            print(X_batch.shape)
             for X_batch_named in data_loader:
                 X_batch = X_batch_named[1]
                 if gpu:
@@ -390,34 +393,40 @@ def featurize(image_folder, c):
 def featurize_and_save(image_folder, out_fpath, c):
     # run feature extraction
     X_lift, names, net = featurize(image_folder, c)
+    print(net)
+    print(net.cpu())
 
-    # get lat/lons of images from names
-    latlon = np.array([i.split("_")[:2] for i in names], dtype=np.float64)
-    lon = latlon[:, 1]
-    lat = latlon[:, 0]
+    # # get lat/lons of images from names
+    # latlon = np.array([i.split("_")[:2] for i in names], dtype=np.float64)
+    # lon = latlon[:, 1]
+    # lat = latlon[:, 0]
 
-    # get zoom level and n-pixels of image from names
-    zoom_level, n_pixels = [int(i) for i in names[0].split("_")[2:4]]
+    # # get zoom level and n-pixels of image from names
+    # zoom_level, n_pixels = [int(i) for i in names[0].split("_")[2:4]]
 
-    # get i,j IDs for these images
-    ij = spatial.ll_to_ij(
-        lon,
-        lat,
-        c.grid_dir,
-        c.grid["area"],
-        zoom_level,
-        n_pixels,
-    )
-    ij = ij.astype(str)
-    ids = np.char.add(np.char.add(ij[:, 0], ","), ij[:, 1])
+    # # get i,j IDs for these images
+    # ij = spatial.ll_to_ij(
+    #     lon,
+    #     lat,
+    #     c.grid_dir,
+    #     c.grid["area"],
+    #     zoom_level,
+    #     n_pixels,
+    # )
+    # ij = ij.astype(str)
+    # ids = np.char.add(np.char.add(ij[:, 0], ","), ij[:, 1])
 
     # save
     with open(out_fpath, "wb") as f:
-        dill.dump(
-            {"X": X_lift, "ids_X": ids, "net": net.cpu(), "latlon": latlon},
-            f,
-            protocol=4,
+        pickle.dump(
+          {'X': X_lift, 'names': names, 'net': net.cpu()},
+          f
         )
+        # dill.dump(
+        #     {"X": X_lift, "ids_X": ids, "net": net.cpu(), "latlon": latlon},
+        #     f,
+        #     protocol=4,
+        # )
 
 
 def __featurize(

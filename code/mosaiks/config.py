@@ -74,7 +74,7 @@ features = {
         "pool_stride": 256,
         "bias": 0.0,
         "filter_scale": 1e-3,
-        "patch_distribution": "empirical",
+        "patch_distribution": "gaussian",
     },
     "pretrained": {"model_type": "resnet152", "batch_size": 128},
 }
